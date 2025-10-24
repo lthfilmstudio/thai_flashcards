@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>มากอดมา</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;700&family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    .font-sarabun { font-family: 'Sarabun', sans-serif; }
+    .font-noto-thai { font-family: 'Noto Sans Thai', sans-serif; }
+    .card-scene { perspective: 1000px; }
+    .card { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.6s; }
+    .card.is-flipped { transform: rotateY(180deg); }
+    .card-face { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+    .card-face-back { transform: rotateY(180deg); }
+    .kbd { border: 1px solid rgb(75,85,99); border-bottom-width: 2px; padding: 0 0.4rem; border-radius: 0.375rem; font-size: 1em; }
+      /* ===== 深綠色主題：Pantone 19-5513 TCX（Dark Green） =====
+       來源十六進位推估：#314F40（以第三方色碼庫與色票頁對照）
+       參考：Pantone 官方色卡頁（名稱與編號）、icolorpalette / colorxs 對應十六進位值。
+       注意：下列灰階類別被重新映射為深綠色階，避免全面改 class。 */
+    :root{
+      /* 全站深綠主題：整體再調暗一階，維持適度層次 */
+      --pantone-dark-green: #011a14; /* 最深：頁面背景（更暗） */
+      --pantone-dark-green-900: #102c25; /* 區塊背景 */
+      --pantone-dark-green-800: #17362e; /* 卡片/按鈕基準 */
+      --pantone-dark-green-700: #21463b; /* 次淺 */
+      --pantone-dark-green-600: #2b5445; /* 淺 */
+      --pantone-dark-green-500: #356151; /* 最淺 */
+
+      /* 文字略降亮度，避免與底色反差過大 */
+      --pantone-ink: #dbe8e2;       /* 主要文字 */
+      --pantone-ink-muted: #b8c6c1; /* 次要文字 */
+
+      --pantone-border: #1c2c24;    /* 邊框陰影 */
+      --pantone-dark-green-950: #01110d; /* 深控件備用階（更深） */
+    }
+    /* 重映射 Tailwind 灰階到綠階（集中覆蓋） */
+    body.bg-gray-900{ background-color: var(--pantone-dark-green) !important; color: var(--pantone-ink); }
+    .bg-gray-900{ background-color: var(--pantone-dark-green-900) !important; }
+    .bg-gray-800{ background-color: var(--pantone-dark-green-800) !important; }
+    .bg-gray-700{ background-color: var(--pantone-dark-green-700) !important; }
+    .bg-gray-600{ background-color: var(--pantone-dark-green-600) !important; }
+    .bg-gray-500{ background-color: var(--pantone-dark-green-500) !important; }
+
+    .text-gray-200, .text-gray-300{ color: var(--pantone-ink) !important; }
+    .text-gray-400, .text-gray-500{ color: var(--pantone-ink-muted) !important; }
+
+    .border-gray-800{ border-color: var(--pantone-border) !important; }
+    .border-gray-700{ border-color: var(--pantone-border) !important; }
+
+    /* 卡片陰影與按鈕互動微調，讓深綠更有層次 */
+    .shadow, .shadow-xl, .shadow-inner{ box-shadow: 0 6px 18px rgba(0,0,0,.35) !important; }
+    .hover\:bg-gray-700:hover{ filter: brightness(1.03) saturate(1.02); }
+    .hover\:bg-gray-600:hover{ filter: brightness(1.05) saturate(1.03); }
+
+    /* kbd 外觀對應綠階 */
+    .kbd{ border-color: var(--pantone-border); color: var(--pantone-ink-muted); }
+      /* 控制區塊（最下方）加深為最深底色；按鈕與儲存列做出階層對比 */
+    #controls-section{ background-color: var(--pantone-dark-green) !important; border: 1px solid var(--pantone-border); }
+    #controls-section .action-btn{ background-color: var(--pantone-dark-green-800) !important; border-color: var(--pantone-border) !important; font-weight: 600; }
+    /* 清空二段式確認的警示狀態 */
+    #controls-section .danger-btn{ background-color: var(--pantone-dark-green-900) !important; outline: 2px solid rgba(220,80,80,.6); }
+    #controls-section .action-btn:hover{ filter: brightness(1.06) saturate(1.04); }
+    /* 儲存按鈕的已儲存狀態：維持 💾 圖示，但以視覺提示區分 */
+    #btn-save.is-saved{ box-shadow: 0 0 0 2px rgba(255,255,255,.08) inset, 0 0 0 2px rgba(120,200,160,.35); }
+    /* 警示動畫：二段式確認時明顯提示 */
+    @keyframes shakeX { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px);} 30%, 50%, 70% { transform: translateX(-4px);} 40%, 60% { transform: translateX(4px);} }
+    .danger-btn{ background-color: var(--pantone-dark-green-900) !important; outline: 2px solid rgba(220,80,80,.6); animation: shakeX 320ms ease-in-out; }
+      /* 第一區：載入與關鍵字輸入更深色，和區塊背景做出區隔 */
+    .deep-ctrl{ background-color: var(--pantone-dark-green-950) !important; border-color: var(--pantone-border) !important; }
+    .deep-ctrl::placeholder{ color: var(--pantone-ink-muted); }
+    .deep-ctrl-btn{ background-color: var(--pantone-dark-green-950) !important; border: 1px solid var(--pantone-border) !important; font-weight: 600; }
+    .deep-ctrl-btn:hover{ filter: brightness(1.06) saturate(1.04); }
+      /* 與「上一張」按鈕一致的色階（可共用於載入按鈕與網址輸入框） */
+    .action-tone{ background-color: var(--pantone-dark-green-800) !important; border: 1px solid var(--pantone-border) !important; }
+    .action-tone:hover{ filter: brightness(1.06) saturate(1.04); }
+      /* 圖示按鈕（線條、無填色） */
+    .icon-btn svg{ width: 20px; height: 20px; color: var(--pantone-ink-muted); }
+    #btn-save.is-saved svg{ color: var(--pantone-ink); }
+  </style>
+</head>
+<body class="bg-gray-900 text-gray-200 min-h-screen">
+  <div class="max-w-4xl mx-auto p-4">
+    <header class="mb-6">
+      <h1 class="text-2xl font-bold tracking-wide text-gray-300 text-center w-full font-sarabun">ทำได้ดีแล้ว</h1>
+      <p class="mt-2 text-sm text-gray-400 text-center w-full font-sarabun">เก่งที่สุดแล้วค่ะ</p>
+    </header>
+
+    <!-- 設定列（無測驗模式） -->
+    <section class="bg-gray-900 rounded-xl p-5 mb-8 grid md:grid-cols-3 gap-4">
+      <div class="space-y-2">
+        <label class="block text-sm">來源網址</label>
+        <input id="source-url" class="w-full action-tone rounded-lg px-3 py-2" placeholder="Google Sheet 發佈 CSV 或 pubhtml" />
+        <button id="btn-load" class="w-full action-tone rounded-lg py-2 font-semibold">載入</button>
+        <p id="load-msg" class="text-xs text-gray-400"></p>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-sm">顯示選項</label>
+        <label class="inline-flex items-center gap-2 text-sm"><input id="shuffle" type="checkbox" class="accent-gray-400">隨機抽題</label>
+        <label class="inline-flex items-center gap-2 text-sm"><input id="tts" type="checkbox" class="accent-gray-400">翻面時自動發音</label>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-sm">過濾</label>
+        <input id="search" class="w-full action-tone rounded-lg px-3 py-2" placeholder="關鍵字過濾（中/泰/拼音）" />
+        <div class="text-xs text-gray-400">全部：<span id="all-count">0</span> 張</div>
+      </div>
+    </section>
+
+    <!-- 主區：卡片（獨立一列） -->
+    <section class="mb-8 relative">
+      <!-- 快捷鍵提示：放在卡片外側右上方，避免被卡片遮擋 -->
+      <div class="bg-gray-900 rounded-xl p-5 relative">
+        <!-- 快捷鍵提示：卡片區塊內（非卡片內），置於卡片上方，與卡片間隔一行並靠右對齊 -->
+        <div class="w-full text-right text-xs text-gray-400 leading-tight mb-3">
+          快捷鍵：<span class="kbd">空白鍵</span>翻面、<span class="kbd">J</span>/<span class="kbd">K</span> 上下、<span class="kbd">R</span> 隨機、<span class="kbd">G</span> 發音、<span class="kbd">S</span> 儲存/取消
+        </div>
+        <div class="h-72 card-scene">
+          <div id="card" class="card rounded-xl bg-gray-800 border border-gray-900 cursor-pointer">
+            <div class="card-face p-6">
+              <p id="front-big" class="text-3xl text-center leading-snug"></p>
+            </div>
+            <div class="card-face card-face-back p-6">
+              <div class="w-full space-y-2 text-center">
+                <p id="back-main-th-sara" class="font-sarabun text-3xl"></p>
+                <p id="back-main-th-noto" class="font-noto-thai text-3xl"></p>
+                <p id="back-pinyin" class="text-gray-400"></p>
+                <p id="back-zh" class="text-gray-300"></p>
+              </div>
+              <div class="absolute top-3 left-3"><button id="btn-save" title="儲存/取消儲存" class="w-9 h-9 rounded-full bg-gray-800 grid place-items-center hover:bg-gray-700 icon-btn" aria-label="儲存/取消儲存">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M5 3h11l3 3v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+    <path d="M7 3v6h10"/>
+    <rect x="7" y="13" width="10" height="6" rx="1"/>
+  </svg>
+</button></div>
+              <div class="absolute top-3 right-3"><button id="btn-speak" title="播放發音" class="w-9 h-9 rounded-full bg-gray-800 grid place-items-center hover:bg-gray-700 icon-btn" aria-label="播放發音">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="9" y="3" width="6" height="10" rx="3"/>
+    <path d="M7 12a5 5 0 0 0 10 0"/>
+    <path d="M12 17v4"/>
+    <path d="M5 21h14"/>
+  </svg>
+</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="mt-4 text-center text-xs text-gray-500">點擊卡片翻面</div>
+      </div>
+    </section>
+
+    <!-- 控制列與儲存清單（整塊在卡片下方，同一列） -->
+    <section id="controls-section" class="rounded-xl p-5 space-y-5">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button id="btn-prev" class="action-btn border rounded-lg py-2">上一張</button>
+        <button id="btn-random" class="action-btn border rounded-lg py-2">隨機抽</button>
+        <button id="btn-next" class="action-btn border rounded-lg py-2">下一張</button>
+        <button id="btn-export-csv" class="action-btn border rounded-lg py-2 text-sm">匯出CSV</button>
+      </div>
+      <div id="download-holder" class="text-xs text-gray-400"></div>
+
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-semibold text-gray-300">已儲存的卡片</h2>
+          <div class="flex items-center gap-3">
+            <div class="text-xs text-gray-400">共 <span id="saved-count">0</span> 張</div>
+            <button id="btn-clear-saved" class="action-btn border rounded-lg py-1.5 px-3 text-xs">全部清空</button>
+          </div>
+        </div>
+        <div id="saved-list" class="max-h-64 overflow-y-auto space-y-3"></div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="fixed bottom-4 right-4 bg-gray-900 text-gray-200 px-4 py-2 rounded-lg opacity-0 pointer-events-none transition"></div>
+
+  <script>
+    // ======== 資料與狀態 ========
+    const LS_SAVED_KEY = 'thaiFlashcards.saved.v1';
+
+    let deck = []; // {id, zh, th, py}
+    let filteredIdx = []; // 篩選後的索引
+    let cursor = 0; // 目前於 filteredIdx 的位置
+    let saved = loadJSON(LS_SAVED_KEY, []); // [{id, zh, th, py}]
+
+    const $ = (sel) => document.querySelector(sel);
+    const toast = (msg) => { const el = document.getElementById('toast'); el.textContent = msg; el.classList.remove('opacity-0'); el.classList.add('opacity-100'); setTimeout(()=>{ el.classList.add('opacity-0'); }, 1600); };
+
+    // ======== 工具函式 ========
+    function loadJSON(key, fallback){ try{ const v = localStorage.getItem(key); return v? JSON.parse(v): fallback; }catch(e){ return fallback; } }
+    function saveJSON(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
+    function uidFor(card){ return btoa(unescape(encodeURIComponent(`${card.th}\u0001${card.zh}`))); }
+
+    function csvAutoFix(url){
+      if(url.includes('docs.google.com') && url.includes('/pubhtml')){
+        return url.replace('/pubhtml', '/pub?output=csv');
+      }
+      return url;
+    }
+
+    async function fetchCSV(url){
+      const fixed = csvAutoFix(url);
+      const target = fixed.includes('docs.google.com') ? `https://cors.eu.org/${fixed}` : fixed;
+      const res = await fetch(target);
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.text();
+    }
+
+    function parseCSV(text){
+      const rows = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+      if(rows.length === 0) return [];
+      const dataRows = rows[0].includes('中文') || rows[0].includes('泰文') ? rows.slice(1) : rows;
+      const out = [];
+      for(const row of dataRows){
+        const cols = row.match(/([^\",]+|"[^"]*")(,|$)/g)?.map(s=>s.replace(/,$/, '')) || row.split(',');
+        const clean = (s)=>{
+          if(typeof s !== 'string') return '';
+          s = s.trim();
+          if(s.startsWith('"') && s.endsWith('"')) s = s.slice(1,-1).replace(/""/g,'"');
+          return s;
+        };
+        const zh = clean(cols[0]||'');
+        const th = clean(cols[1]||'');
+        const py = clean(cols[2]||'');
+        if(zh && th){ out.push({ zh, th, py }); }
+      }
+      return out;
+    }
+
+    function rebuildDeck(cards){
+      deck = cards.map(c=>({ id: uidFor(c), ...c }));
+      applyFilter();
+      updateCounts();
+      renderCard();
+    }
+
+    function current(){ return deck[ filteredIdx[cursor] ] || null; }
+
+    // ======== UI 更新 ========
+    function setCardFront(card){ $('#front-big').textContent = card.zh; }
+    function setCardBack(card){
+      $('#back-main-th-sara').textContent = card.th;
+      $('#back-main-th-noto').textContent = card.th;
+      $('#back-pinyin').textContent = card.py || '';
+      $('#back-zh').textContent = card.zh;
+    }
+
+    function renderCard(){
+      const c = current();
+      if(!c){ $('#front-big').textContent = '尚未載入資料'; return; }
+      setCardFront(c);
+      setCardBack(c);
+      $('#card').classList.remove('is-flipped');
+      const isSaved = saved.some(s=>s.id === c.id);
+      const saveBtn = document.getElementById('btn-save');
+      if(isSaved){ saveBtn.classList.add('is-saved'); saveBtn.setAttribute('title','取消儲存'); }
+      else { saveBtn.classList.remove('is-saved'); saveBtn.setAttribute('title','儲存/取消儲存'); }
+    }
+
+    function updateCounts(){ $('#all-count').textContent = deck.length; $('#saved-count').textContent = saved.length; }
+
+    function applyFilter(){
+      const q = $('#search').value.trim().toLowerCase();
+      const pool = $('#shuffle').checked ? [...deck].sort(()=>Math.random()-0.5) : deck;
+      filteredIdx = [];
+      pool.forEach((c)=>{
+        const hit = !q || c.zh.toLowerCase().includes(q) || c.th.toLowerCase().includes(q) || (c.py||'').toLowerCase().includes(q);
+        if(hit){ filteredIdx.push(deck.indexOf(c)); }
+      });
+      cursor = 0;
+    }
+
+    // ======== 發音 ========
+    function speakThai(text){
+      if(!('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'th-TH';
+      u.rate = 1.15;
+      window.speechSynthesis.speak(u);
+    }
+
+    // ======== 儲存清單 ========
+    function toggleSave(card){
+      const i = saved.findIndex(s=>s.id===card.id);
+      if(i>=0){ saved.splice(i,1); toast('已取消儲存'); }
+      else { saved.push(card); toast('已儲存'); }
+      saveJSON(LS_SAVED_KEY, saved); renderSaved(); renderCard(); updateCounts();
+    }
+
+    function renderSaved(){
+      const box = $('#saved-list'); box.innerHTML='';
+      if(saved.length===0){ box.innerHTML='<div class="text-sm text-gray-500">尚未儲存任何卡片</div>'; return; }
+      saved.slice().reverse().forEach(c=>{
+        const row = document.createElement('div');
+        row.className = 'p-4 bg-gray-900 rounded-lg flex items-center justify-between';
+        row.innerHTML = `<div><div class="font-semibold text-gray-300">${c.zh}</div><div class="font-sarabun text-gray-300 text-sm">${c.th}</div><div class="text-xs text-gray-500">${c.py||''}</div></div><div class="flex gap-2"><button class="w-9 h-9 grid place-items-center bg-gray-800 rounded icon-btn" data-act="speak" title="播放發音" aria-label="播放發音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="10" rx="3"/><path d="M7 12a5 5 0 0 0 10 0"/><path d="M12 17v4"/><path d="M5 21h14"/></svg></button><button class="w-9 h-9 grid place-items-center bg-gray-700 rounded icon-btn" data-act="del" title="移除" aria-label="移除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button></div>`;
+        row.querySelector('[data-act="speak"]').onclick = ()=>speakThai(c.th);
+        row.querySelector('[data-act="del"]').onclick = ()=>{ saved = saved.filter(x=>x.id!==c.id); saveJSON(LS_SAVED_KEY, saved); renderSaved(); updateCounts(); };
+        box.appendChild(row);
+      });
+    }
+
+    let __clearArmTimer = null; let __clearArmed = false;
+    function clearSavedAll(){
+      const btn = document.getElementById('btn-clear-saved');
+      if(!btn){ console.warn('找不到清空按鈕元素'); return; }
+      if(saved.length===0){ toast('沒有可清空的卡片'); return; }
+
+      // 統一採二段式確認，避免 sandbox 阻擋 confirm
+      if(!__clearArmed){
+        __clearArmed = true;
+        btn.textContent = '確定清空？';
+        btn.classList.add('danger-btn');
+        if(__clearArmTimer) clearTimeout(__clearArmTimer);
+        __clearArmTimer = setTimeout(()=>{
+          __clearArmed = false;
+          btn.textContent = '全部清空';
+          btn.classList.remove('danger-btn');
+        }, 3500);
+        toast('再次點擊以確認清空');
+        return;
+      }
+
+      // 第二次點擊，執行清空
+      if(__clearArmTimer) clearTimeout(__clearArmTimer);
+      __clearArmed = false;
+      btn.textContent = '全部清空';
+      btn.classList.remove('danger-btn');
+
+      saved = [];
+      saveJSON(LS_SAVED_KEY, saved);
+      renderSaved();
+      updateCounts();
+      toast('已清空所有已儲存卡片');
+    }
+
+    function buildSavedCSVString(list){
+      let csv = '\uFEFF泰文,拼音,中文\r\n';
+      for(const c of list){
+        const esc = s=>`"${(s||'').replace(/"/g,'""')}"`;
+        csv += `${esc(c.th)},${esc(c.py)},${esc(c.zh)}\r\n`;
+      }
+      return csv;
+    }
+
+    // 更穩健的匯出流程（含 iOS Safari 後備方案）
+    async function exportSavedCSV(){
+      if(saved.length===0){ toast('沒有可匯出的已存卡片'); return; }
+      const csv = buildSavedCSVString(saved);
+      const filename = 'thai_saved_cards.csv';
+      const holder = document.getElementById('download-holder');
+      holder.innerHTML = '';
+
+      // 1) 優先使用 File System Access API（最可靠的使用者授權下載）
+      if(window.showSaveFilePicker){
+        try{
+          const handle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{ description: 'CSV', accept: { 'text/csv': ['.csv'] } }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+          await writable.close();
+          toast('CSV 已儲存');
+          return;
+        }catch(e){
+          // 使用者取消或 API 失敗，改用其他策略
+          console.warn('showSaveFilePicker 失敗或使用者取消：', e);
+        }
+      }
+
+      // 2) 物件網址 + 隱形 <a download>
+      try{
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.rel = 'noopener'; a.style.display='none';
+        document.body.appendChild(a);
+        a.dispatchEvent(new MouseEvent('click', {bubbles:true, cancelable:true, view:window}));
+        setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 0);
+        // 許多環境不會顯示系統提示，這裡提供手動連結備援
+        holder.innerHTML = `若未自動下載，請點此手動下載：<a class="underline" href="${url}" download="${filename}">thai_saved_cards.csv</a>`;
+        toast('已觸發下載/提供手動連結');
+        return;
+      }catch(err){
+        console.warn('Object URL 下載失敗：', err);
+      }
+
+      // 3) 資料 URI 新分頁（iOS 等環境）
+      try{
+        const dataUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+        const w = window.open();
+        if(w) { w.document.location = dataUri; toast('已在新分頁開啟 CSV'); return; }
+        // 4) 最後備援：複製到剪貼簿
+        await navigator.clipboard.writeText(csv);
+        holder.textContent = '已將 CSV 複製到剪貼簿，請自行貼到文字檔存成 .csv';
+        toast('已複製 CSV 文字');
+      }catch(e){
+        holder.textContent = '無法自動下載，請允許彈出視窗或改用桌面瀏覽器。';
+        console.error('所有匯出策略皆失敗：', e);
+      }
+    }
+
+    // ======== 導覽與互動 ========
+    function prevCard(){ if(filteredIdx.length===0) return; cursor = (cursor - 1 + filteredIdx.length) % filteredIdx.length; renderCard(); }
+    function nextCard(){ if(filteredIdx.length===0) return; cursor = (cursor + 1) % filteredIdx.length; renderCard(); }
+    function randomCard(){ if(filteredIdx.length<=1) return; let ni; do{ ni = Math.floor(Math.random()*filteredIdx.length); }while(ni===cursor); cursor = ni; renderCard(); }
+
+    // 綁定事件
+    $('#btn-load').onclick = async ()=>{
+      const url = $('#source-url').value.trim();
+      if(!url){ $('#load-msg').textContent = '請貼上網址'; return; }
+      $('#load-msg').textContent = '載入中…';
+      try{
+        const csv = await fetchCSV(url);
+        const rows = parseCSV(csv);
+        rebuildDeck(rows);
+        $('#load-msg').textContent = `成功載入 ${rows.length} 筆`;
+        renderSaved();
+      }catch(e){ $('#load-msg').textContent = '載入失敗：'+e.message; }
+    };
+
+    $('#shuffle').onchange = ()=>{ applyFilter(); renderCard(); };
+    $('#search').oninput = ()=>{ applyFilter(); renderCard(); };
+    document.getElementById('btn-prev').onclick = prevCard;
+    document.getElementById('btn-next').onclick = nextCard;
+    document.getElementById('btn-random').onclick = randomCard;
+    document.getElementById('btn-save').onclick = ()=>{ const c=current(); if(c) toggleSave(c); };
+    document.getElementById('btn-speak').onclick = ()=>{ const c=current(); if(c) speakThai(c.th); };
+    document.getElementById('btn-export-csv').onclick = exportSavedCSV;
+    // 綁定方式改為事件委派，避免任何未來 DOM 更新導致綁定失效
+    document.addEventListener('click', (e)=>{ if(e.target && e.target.id === 'btn-clear-saved'){ clearSavedAll(); } });
+
+    document.getElementById('card').onclick = (ev)=>{
+      if(ev.target.closest('#btn-save') || ev.target.closest('#btn-speak')) return;
+      const el = document.getElementById('card');
+      el.classList.toggle('is-flipped');
+      if(el.classList.contains('is-flipped') && document.getElementById('tts').checked){ const c=current(); if(c) speakThai(c.th); }
+    };
+
+    window.addEventListener('keydown', (e)=>{
+      if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+      if(e.key==='j' || e.key==='ArrowLeft') prevCard();
+      else if(e.key==='k' || e.key==='ArrowRight') nextCard();
+      else if(e.key===' '){ e.preventDefault(); const el=document.getElementById('card'); el.classList.toggle('is-flipped'); if(el.classList.contains('is-flipped') && document.getElementById('tts').checked){ const c=current(); if(c) speakThai(c.th); } }
+      else if(e.key.toLowerCase()==='r') randomCard();
+      else if(e.key.toLowerCase()==='g'){ const c=current(); if(c) speakThai(c.th); }
+      else if(e.key.toLowerCase()==='s'){ const c=current(); if(c) toggleSave(c); }
+    });
+
+    // ======== 測試（自動執行） ========
+    function runTests(){
+      console.group('%cTest: parseCSV 與 CSV 匯出','color:#6ee7b7');
+      const t1 = '中文,泰文,拼音\n早安,สวัสดีตอนเช้า,sawatdii';
+      const r1 = parseCSV(t1); console.assert(r1.length===1 && r1[0].zh==='早安' && r1[0].th==='สวัสดีตอนเช้า','t1 失敗');
+      const t2 = '中文,泰文,拼音\r\n"A,B","คอมมา,ทดสอบ","ka,ra"\r\n';
+      const r2 = parseCSV(t2); console.assert(r2.length===1 && r2[0].zh==='A,B' && r2[0].th==='คอมมา,ทดสอบ','t2 失敗');
+      const t3 = '\uFEFF中文,泰文,拼音\n謝謝,ขอบคุณ,khop khun';
+      const r3 = parseCSV(t3); console.assert(r3.length===1 && r3[0].zh==='謝謝' && r3[0].th==='ขอบคุณ','t3 失敗');
+      const t4 = '晚安,ราตรีสวัสดิ์,raat-rii';
+      const r4 = parseCSV(t4); console.assert(r4.length===1 && r4[0].zh==='晚安','t4 失敗');
+      const csvStr = buildSavedCSVString([{zh:'早安', th:'สวัสดีตอนเช้า', py:'sawatdii'}]);
+      console.assert(csvStr.startsWith('\uFEFF'),'CSV 無 BOM');
+      console.assert(csvStr.includes('泰文,拼音,中文'),'CSV 標題錯誤');
+      console.assert(csvStr.trim().endsWith('"สวัสดีตอนเช้า","sawatdii","早安"'),'CSV 內容錯誤');
+      console.groupEnd();
+    }
+
+    (function init(){
+      try{ runTests(); }catch(e){ console.error('測試錯誤：', e); }
+      renderSaved(); updateCounts();
+      const demo = [
+        { zh:'早安', th:'สวัสดีตอนเช้า', py:'sawatdii ton chao' },
+        { zh:'晚安', th:'ราตรีสวัสดิ์', py:'raat-rii sa-wat' },
+        { zh:'謝謝', th:'ขอบคุณ', py:'khop khun' },
+      ];
+      rebuildDeck(demo);
+    })();
+  </script>
+</body>
+</html>
